@@ -43,7 +43,7 @@
       <button
         class="btn btn-danger"
         [disabled]="loadedPosts.length < 1"
-        (click)="onClearPosts()"
+        (click)="onClearPosts({ title: '', content: '' })"
       >
         Clear Posts
       </button>
@@ -62,7 +62,12 @@
           </p>
         </li>
       </ul>
-      <p *ngIf="isFetching">Loading...</p>
+      <p *ngIf="isFetching && !error">Loading...</p>
+      <div class="alertalert-danger" *ngIf="error">
+        <h1>An Error Ocurred</h1>
+        <p>{{ error }}</p>
+        <button class="btn btn-primary" (click)="onHandleError()">Okay</button>
+      </div>
     </div>
   </div>
 </div>

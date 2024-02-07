@@ -1,60 +1,71 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnDestroy, OnInit } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { map } from 'rxjs';
+import { Subscription, map } from 'rxjs';
 import { Post } from './post.model';
+import { PostsService } from './posts.service';
 
 @Component({
   selector: 'app-root',
   templateUrl: './app.component.html',
   styleUrls: ['./app.component.css']
 })
-export class AppComponent implements OnInit {
+export class AppComponent implements OnInit, OnDestroy {
   loadedPosts: Post[] = [];
   isFetching = false;
+  error: any = null;
+  private errorSub!: Subscription;
+  
 
-  constructor(private http: HttpClient) {}
+  constructor(private http: HttpClient, private postsService: PostsService) {}
 
   ngOnInit() {
-    this.fetchPosts();
+    this.errorSub = this.postsService.error.subscribe(errorMessage => {
+      this.error = errorMessage;
+    });
+    this.isFetching = true;
+    this.postsService.fetchPosts().subscribe(
+      posts => {
+      this.isFetching = false;
+      this.loadedPosts = posts;
+      }, 
+      error => {
+      this.error = error.message;
+      }
+    );
   }
 
   onCreatePost(postData: Post) {
     // Send Http request
-    this.http
-    .post<{ name: string }>(
-      'https://ng-access-backend-default-rtdb.firebaseio.com/posts.json', 
-      postData
-      ).subscribe(responseData => {
-        console.log(responseData);
-      });
+    this.postsService.createAndStorePost(postData.title, postData.content);
   }
 
   onFetchPosts() {
-    // Send Http request
-    this.fetchPosts();
-  }
-
-  onClearPosts() {
-    // Send Http request
-  }
-
-  private fetchPosts() {
     this.isFetching = true;
-    this.http
-      .get<{ [key: string]: Post }>('https://ng-access-backend-default-rtdb.firebaseio.com/posts.json')
-      .pipe(
-        map(responseData => { // Add type annotation for index signature
-        const postsArray: Post[] = [];
-        for (const key in responseData) {
-          if (responseData.hasOwnProperty(key)) {
-            postsArray.push({ ...responseData[key], id: key });
-          }
-        }
-        return postsArray;
-      }))
-      .subscribe(posts => {
+    this.postsService.fetchPosts().subscribe(
+      posts => {
+      this.isFetching = false;
+      this.loadedPosts = posts;
+      }, 
+      error => {
         this.isFetching = false;
-        this.loadedPosts = posts;
-      });
+      this.error = error.message;
+      console.log(error);
+      }
+    );
+  }
+
+  onClearPosts(postData: Post) {
+    // Send Http request
+    this.postsService.deletePost().subscribe(() => {
+      this.loadedPosts = [];
+    });
+  }
+
+  onHandleError() {
+    this.error = null;
+  }
+
+  ngOnDestroy(): void {
+    this.errorSub.unsubscribe();
   }
 }
